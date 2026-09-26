@@ -1,0 +1,6 @@
+{
+  "name": "হিসাব বন্ধু - MFS, রেমিট্যান্স ও ওজন ক্যালকুলেটর",
+  "description": "বিকাশ নগদ ক্যাশআউট খরচ, বিশ্বের যে কোনো দেশের রেমিট্যান্স ও পণ্যের ওজন-মূল্যের দ্রুত ও অফলাইন ক্যালকুলেটর।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
