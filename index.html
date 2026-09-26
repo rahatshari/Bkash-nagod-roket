@@ -16,6 +16,31 @@
     <meta name="apple-mobile-web-app-title" content="হিসাব বন্ধু" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./pwa-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./pwa-512x512.png" />
+    <link rel="shortcut icon" href="./pwa-192x192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <script>
+      // Early beforeinstallprompt catcher
+      window.__deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.__deferredPrompt = e;
+        window.dispatchEvent(new CustomEvent('app-can-install'));
+      });
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('./sw.js', { scope: './' })
+            .then(function(reg) {
+              console.log('PWA ServiceWorker registered with scope:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('PWA ServiceWorker registration error:', err);
+            });
+        });
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

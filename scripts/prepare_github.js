@@ -30,6 +30,7 @@ const rootFilesToCopy = [
   'sw.js',
   'registerSW.js',
   'manifest.webmanifest',
+  'manifest.json',
   '404.html',
   'icon.svg',
   'apple-touch-icon.png',

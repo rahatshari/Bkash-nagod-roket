@@ -22,21 +22,36 @@ export function usePWAInstall() {
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIOSDevice);
 
+    // Check if early prompt was already captured
+    if ((window as unknown as { __deferredPrompt?: BeforeInstallPromptEvent }).__deferredPrompt) {
+      setDeferredPrompt((window as unknown as { __deferredPrompt?: BeforeInstallPromptEvent }).__deferredPrompt!);
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
+      (window as unknown as { __deferredPrompt?: BeforeInstallPromptEvent }).__deferredPrompt = e as BeforeInstallPromptEvent;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    const handleAppCanInstall = () => {
+      if ((window as unknown as { __deferredPrompt?: BeforeInstallPromptEvent }).__deferredPrompt) {
+        setDeferredPrompt((window as unknown as { __deferredPrompt?: BeforeInstallPromptEvent }).__deferredPrompt!);
+      }
     };
 
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      (window as unknown as { __deferredPrompt?: null }).__deferredPrompt = null;
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('app-can-install', handleAppCanInstall);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('app-can-install', handleAppCanInstall);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);

@@ -81,25 +81,43 @@ define(['./workbox-7e5eb42b'], (function (workbox) { 'use strict';
     "revision": "402b66900e731ca748771b6fc5e7a068"
   }, {
     "url": "pwa-maskable-512x512.png",
-    "revision": "baa800c9ec20b53cc74b7ca69fd4b313"
+    "revision": "e72dc7a0ca9803a24f3a916cf1fc8585"
   }, {
     "url": "pwa-512x512.png",
-    "revision": "2fd93be8008ba571a2d30467eabc9a70"
+    "revision": "e72dc7a0ca9803a24f3a916cf1fc8585"
   }, {
     "url": "pwa-192x192.png",
-    "revision": "ddc3a0ea6f4fb8a6d3f43ff0c8d56b4f"
+    "revision": "c8efb56fad8ca57f70eead4575d0a3ab"
   }, {
     "url": "index.html",
-    "revision": "c646e51f32d9ba54a9affb748fc023aa"
+    "revision": "5184335b716e204ce52587f5813db028"
   }, {
     "url": "icon.svg",
     "revision": "903564c038cf0949140279ab10afbcde"
   }, {
+    "url": "favicon-32x32.png",
+    "revision": "187c3c40e83d28a14aae37455d5abd43"
+  }, {
+    "url": "favicon-16x16.png",
+    "revision": "e69944bc3b2f4591b8a2d827a8fad218"
+  }, {
     "url": "apple-touch-icon.png",
-    "revision": "a9fa3eb0ca88ef3142b65b1cffabbf95"
+    "revision": "985a052d9a180f187ae3c1461f228976"
   }, {
     "url": "404.html",
     "revision": "58ef27bd450d3baf0a0a6e6c4e82abf5"
+  }, {
+    "url": "assets/pwa-512x512.png",
+    "revision": null
+  }, {
+    "url": "assets/pwa-192x192.png",
+    "revision": null
+  }, {
+    "url": "assets/icon.svg",
+    "revision": null
+  }, {
+    "url": "assets/apple-touch-icon.png",
+    "revision": null
   }, {
     "url": "assets/app.js",
     "revision": null
@@ -108,22 +126,22 @@ define(['./workbox-7e5eb42b'], (function (workbox) { 'use strict';
     "revision": null
   }, {
     "url": "apple-touch-icon.png",
-    "revision": "a9fa3eb0ca88ef3142b65b1cffabbf95"
+    "revision": "985a052d9a180f187ae3c1461f228976"
   }, {
     "url": "icon.svg",
     "revision": "903564c038cf0949140279ab10afbcde"
   }, {
     "url": "pwa-192x192.png",
-    "revision": "ddc3a0ea6f4fb8a6d3f43ff0c8d56b4f"
+    "revision": "c8efb56fad8ca57f70eead4575d0a3ab"
   }, {
     "url": "pwa-512x512.png",
-    "revision": "2fd93be8008ba571a2d30467eabc9a70"
+    "revision": "e72dc7a0ca9803a24f3a916cf1fc8585"
   }, {
     "url": "pwa-maskable-512x512.png",
-    "revision": "baa800c9ec20b53cc74b7ca69fd4b313"
+    "revision": "e72dc7a0ca9803a24f3a916cf1fc8585"
   }, {
     "url": "manifest.webmanifest",
-    "revision": "2a499d6e92d073a459c35ea39ea4bcd9"
+    "revision": "a741d40f7c88d1f579c804e39ff1866f"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html")));
