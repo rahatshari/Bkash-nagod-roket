@@ -1,19 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Scale, 
-  Sparkles, 
-  Plus, 
-  Minus, 
   Copy, 
   Check, 
   BookmarkCheck, 
-  FileText, 
-  RotateCcw,
-  ShoppingBag,
-  HelpCircle,
-  Tag
+  FileText,
+  Trash2 
 } from 'lucide-react';
-import { DigitMode, WeightCalcMode, WeightUnit, HistoryRecord } from '../types';
+import { DigitMode, WeightCalcMode, HistoryRecord } from '../types';
 import { 
   formatDisplayNumber, 
   toBnDigits, 
@@ -30,33 +24,19 @@ interface WeightCalculatorProps {
   onSaveHistory: (record: Omit<HistoryRecord, 'id' | 'timestamp'>) => void;
 }
 
-const COMMON_ITEMS = [
-  'গরুর মাংস',
-  'খাসির মাংস',
-  'ইলিশ / রুই মাছ',
-  'মুরগি (ব্রয়লার)',
-  'চাল / পোলাও চাল',
-  'সয়াবিন তেল',
-  'মসুর ডাল',
-  'চিনি',
-  'মিষ্টি',
-  'সবজি / পেঁয়াজ'
-];
-
 export const WeightCalculator: React.FC<WeightCalculatorProps> = ({
   digitMode,
   soundEnabled,
   onSaveHistory,
 }) => {
-  // Modes: 'weight_to_price' (ওজন অনুযায়ী দাম) vs 'price_to_weight' (টাকা অনুযায়ী ওজন)
+  // Mode: 'weight_to_price' (default) vs 'price_to_weight'
   const [calcMode, setCalcMode] = useState<WeightCalcMode>('weight_to_price');
 
-  // Input states - initialized to user's prompt: 1 kg = 250 TK, 2 kg 700 grams!
-  const [pricePerKgStr, setPricePerKgStr] = useState<string>('250');
-  const [kgStr, setKgStr] = useState<string>('2');
-  const [gramStr, setGramStr] = useState<string>('700');
-  const [givenMoneyStr, setGivenMoneyStr] = useState<string>('100');
-  const [selectedItemName, setSelectedItemName] = useState<string>('পণ্য');
+  // Input states - initialized empty so user starts clean without having to backspace
+  const [pricePerKgStr, setPricePerKgStr] = useState<string>('');
+  const [kgStr, setKgStr] = useState<string>('');
+  const [gramStr, setGramStr] = useState<string>('');
+  const [givenMoneyStr, setGivenMoneyStr] = useState<string>('');
 
   // Modals & Feedback
   const [copied, setCopied] = useState<boolean>(false);
@@ -74,43 +54,69 @@ export const WeightCalculator: React.FC<WeightCalculatorProps> = ({
   const totalWeightInGrams = Math.round(totalWeightInKg * 1000);
 
   // Mode 1: Weight to Price
-  // totalPrice = totalWeightInKg * pricePerKg
   const calculatedTotalPrice = totalWeightInKg * pricePerKg;
 
   // Mode 2: Price to Weight
-  // If given 100 TK and rate is 250 TK/kg:
-  // weightInKg = givenMoney / pricePerKg
   const calculatedWeightInKg = pricePerKg > 0 ? (givenMoney / pricePerKg) : 0;
   const calculatedWeightInGrams = Math.round(calculatedWeightInKg * 1000);
   const derivedKgPart = Math.floor(calculatedWeightInKg);
   const derivedGramPart = Math.round((calculatedWeightInKg - derivedKgPart) * 1000);
 
-  // Rates breakdown for convenience
   const pricePer100Gram = pricePerKg > 0 ? pricePerKg / 10 : 0;
-  const pricePer250Gram = pricePerKg > 0 ? pricePerKg / 4 : 0; // 1 Poya
-  const pricePer50Gram = pricePerKg > 0 ? pricePerKg / 20 : 0;
 
-  // Quick weight adders
-  const addWeight = (addKg: number, addGrams: number) => {
-    if (soundEnabled) soundFx.playTap();
-    const currentTotalGrams = totalWeightInGrams + (addKg * 1000) + addGrams;
-    const newKg = Math.floor(currentTotalGrams / 1000);
-    const newGrams = currentTotalGrams % 1000;
-    setKgStr(String(newKg));
-    setGramStr(String(newGrams));
-  };
+  // Auto-save history with debounce
+  const lastSavedRef = useRef<string>('');
+  useEffect(() => {
+    if (pricePerKg <= 0) return;
+    if (calcMode === 'weight_to_price' && totalWeightInKg <= 0) return;
+    if (calcMode === 'price_to_weight' && givenMoney <= 0) return;
 
-  const handleClear = () => {
+    const key = `${calcMode}_${pricePerKg}_${calcMode === 'weight_to_price' ? totalWeightInKg : givenMoney}`;
+    if (lastSavedRef.current === key) return;
+
+    const timer = setTimeout(() => {
+      lastSavedRef.current = key;
+      const title = `ওজন ও দাম হিসাব`;
+      const subtitle = calcMode === 'weight_to_price'
+        ? `${formatDisplayNumber(kgVal, digitMode, 0)} কেজি ${formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম @ ${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳/কেজি = ${formatDisplayNumber(calculatedTotalPrice, digitMode, 2)} ৳`
+        : `${formatDisplayNumber(givenMoney, digitMode, 2)} টাকায় পাওয়া যাবে ${formatDisplayNumber(derivedKgPart, digitMode, 0)} কেজি ${formatDisplayNumber(derivedGramPart, digitMode, 0)} গ্রাম`;
+
+      onSaveHistory({
+        type: 'weight',
+        title,
+        subtitle,
+        data: {
+          pricePerKg,
+          totalKg: calcMode === 'weight_to_price' ? totalWeightInKg : calculatedWeightInKg,
+          totalGrams: calcMode === 'weight_to_price' ? totalWeightInGrams : calculatedWeightInGrams,
+          totalPrice: calcMode === 'weight_to_price' ? calculatedTotalPrice : givenMoney,
+          itemGivenPrice: givenMoney,
+          itemName: 'পণ্য',
+          mode: calcMode,
+          date: new Date().toISOString(),
+        }
+      });
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [pricePerKg, calcMode, totalWeightInKg, givenMoney, kgVal, gramVal, calculatedTotalPrice, derivedKgPart, derivedGramPart, calculatedWeightInKg, calculatedWeightInGrams, totalWeightInGrams, digitMode, onSaveHistory]);
+
+  const handleClearWeight = () => {
     if (soundEnabled) soundFx.playTap();
     setKgStr('');
     setGramStr('');
   };
 
+  const handleClearPrice = () => {
+    if (soundEnabled) soundFx.playTap();
+    setPricePerKgStr('');
+  };
+
   const handleCopy = async () => {
     if (soundEnabled) soundFx.playTap();
     const text = calcMode === 'weight_to_price'
-      ? `ওজন ও দামের হিসাব:\nপণ্য: ${selectedItemName}\n১ কেজির দাম: ${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳\nমোট ওজন: ${formatDisplayNumber(kgVal, digitMode, 0)} কেজি ${formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম (${formatDisplayNumber(totalWeightInGrams, digitMode, 0)} গ্রাম)\nসর্বমোট দাম: ${formatDisplayNumber(calculatedTotalPrice, digitMode, 2)} ৳`
-      : `ওজন ও দামের হিসাব:\nপণ্য: ${selectedItemName}\n১ কেজির দাম: ${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳\nক্রেতার দেওয়া টাকা: ${formatDisplayNumber(givenMoney, digitMode, 2)} ৳\nপ্রাপ্য মোট ওজন: ${formatDisplayNumber(derivedKgPart, digitMode, 0)} কেজি ${formatDisplayNumber(derivedGramPart, digitMode, 0)} গ্রাম (${formatDisplayNumber(calculatedWeightInGrams, digitMode, 0)} গ্রাম)`;
+      ? `ওজন ও দাম হিসাব:\n১ কেজির দাম: ${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳\nপ্রয়োজনীয় ওজন: ${formatDisplayNumber(kgVal, digitMode, 0)} কেজি ${formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম (${formatDisplayNumber(totalWeightInGrams, digitMode, 0)} গ্রাম)\nসর্বমোট দাম: ${formatDisplayNumber(calculatedTotalPrice, digitMode, 2)} ৳`
+      : `ওজন ও দাম হিসাব:\n১ কেজির দাম: ${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳\nটাকার পরিমাণ: ${formatDisplayNumber(givenMoney, digitMode, 2)} ৳\nমোট পাওয়া যাবে: ${formatDisplayNumber(derivedKgPart, digitMode, 0)} কেজি ${formatDisplayNumber(derivedGramPart, digitMode, 0)} গ্রাম (${formatDisplayNumber(calculatedWeightInGrams, digitMode, 0)} গ্রাম)`;
 
     try {
       await navigator.clipboard.writeText(text);
@@ -125,9 +131,9 @@ export const WeightCalculator: React.FC<WeightCalculatorProps> = ({
     if (pricePerKg <= 0) return;
     if (soundEnabled) soundFx.playSuccess();
 
-    const title = `ওজন হিসাব (${selectedItemName})`;
+    const title = `ওজন ও দাম হিসাব`;
     const subtitle = calcMode === 'weight_to_price'
-      ? `${formatDisplayNumber(kgVal, digitMode, 0)} কেজি ${formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম @ ${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳ = ${formatDisplayNumber(calculatedTotalPrice, digitMode, 2)} ৳`
+      ? `${formatDisplayNumber(kgVal, digitMode, 0)} কেজি ${formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম @ ${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳/কেজি = ${formatDisplayNumber(calculatedTotalPrice, digitMode, 2)} ৳`
       : `${formatDisplayNumber(givenMoney, digitMode, 2)} টাকায় পাওয়া যাবে ${formatDisplayNumber(derivedKgPart, digitMode, 0)} কেজি ${formatDisplayNumber(derivedGramPart, digitMode, 0)} গ্রাম`;
 
     onSaveHistory({
@@ -140,10 +146,10 @@ export const WeightCalculator: React.FC<WeightCalculatorProps> = ({
         totalGrams: calcMode === 'weight_to_price' ? totalWeightInGrams : calculatedWeightInGrams,
         totalPrice: calcMode === 'weight_to_price' ? calculatedTotalPrice : givenMoney,
         itemGivenPrice: givenMoney,
-        itemName: selectedItemName,
+        itemName: 'পণ্য',
         mode: calcMode,
         date: new Date().toISOString(),
-      },
+      }
     });
 
     setSaved(true);
@@ -151,479 +157,295 @@ export const WeightCalculator: React.FC<WeightCalculatorProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & Mode Toggle */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-200/90 dark:border-slate-800 transition-all">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
-                <Scale className="w-5 h-5" />
-              </span>
-              ওজন ও দাম ক্যালকুলেটর (Weight & Price)
+    <div className="max-w-xl mx-auto space-y-4">
+      {/* Main Clean Card */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800 transition-all">
+        {/* Header & Mode Selector */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <Scale className="w-4 h-4" />
+            </div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              ওজন ও দাম ক্যালকুলেটর
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              ১ কেজি দাম জানা থাকলে যে কোনো কেজি ও গ্রামের নিখুঁত দাম ও ভগ্নাংশ বের করুন
-            </p>
           </div>
 
           {/* Mode Switcher */}
-          <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl w-full sm:w-auto">
+          <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs">
             <button
               onClick={() => {
                 if (soundEnabled) soundFx.playTap();
                 setCalcMode('weight_to_price');
               }}
-              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 calcMode === 'weight_to_price'
-                  ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              ওজন অনুযায়ী দাম বের করুন
+              ওজন দিয়ে দাম
             </button>
             <button
               onClick={() => {
                 if (soundEnabled) soundFx.playTap();
                 setCalcMode('price_to_weight');
               }}
-              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 calcMode === 'price_to_weight'
-                  ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              টাকা অনুযায়ী ওজন বের করুন
+              টাকা দিয়ে ওজন
             </button>
           </div>
         </div>
 
-        {/* Quick Item Category Pills */}
-        <div className="mt-4 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 whitespace-nowrap">
-            <Tag className="w-3 h-3" /> পণ্য:
-          </span>
-          {COMMON_ITEMS.map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                if (soundEnabled) soundFx.playTap();
-                setSelectedItemName(item);
-              }}
-              className={`px-2.5 py-1 rounded-xl text-xs font-medium whitespace-nowrap transition cursor-pointer ${
-                selectedItemName === item
-                  ? 'bg-amber-500 text-white font-bold'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
+        {/* 1. Price per Kg Input (১ কেজির দাম) */}
+        <div className="space-y-3">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">
+                প্রতি কেজির দাম (১ কেজির দর)
+              </label>
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={digitMode === 'bn' ? toBnDigits(pricePerKgStr) : toEnDigits(pricePerKgStr)}
+                onChange={(e) => {
+                  const raw = toEnDigits(e.target.value);
+                  if (/^[0-9.]*$/.test(raw)) setPricePerKgStr(raw);
+                }}
+                placeholder={digitMode === 'bn' ? 'কেজির দর লিখুন' : 'Rate per kg'}
+                className="w-full text-2xl sm:text-3xl font-extrabold px-4 py-3 pl-12 pr-28 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition"
+              />
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                ৳
+              </span>
+              {pricePerKgStr && (
+                <button
+                  type="button"
+                  onClick={handleClearPrice}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 active:scale-95 text-rose-500 dark:text-rose-400 text-sm font-black transition-all cursor-pointer border border-rose-500/30 shadow-sm"
+                  title="লেখা মুছুন"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>মুছুন</span>
+                </button>
+              )}
+            </div>
+          </div>
 
-        {/* Inputs & Calculation Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
-          {/* Left Column: Rate & Weight inputs */}
-          <div className="lg:col-span-7 space-y-5">
-            {/* 1 Kg Price Input */}
+          {/* 2. Weight Inputs (কত ওজন প্রয়োজন) */}
+          {calcMode === 'weight_to_price' ? (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <span>১ কেজি (Kg) ওজনের দাম কত টাকা?</span>
-                  <span className="text-amber-600 font-bold">*</span>
+                <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">
+                  কতটুকু ওজন লাগবে?
+                </label>
+                {(kgStr || gramStr) && (
+                  <button
+                    type="button"
+                    onClick={handleClearWeight}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-500 dark:text-rose-400 text-xs font-black transition-all cursor-pointer border border-rose-500/20 shadow-xs"
+                    title="ওজন মুছুন"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>মুছুন</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Kg Input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={digitMode === 'bn' ? toBnDigits(kgStr) : toEnDigits(kgStr)}
+                    onChange={(e) => {
+                      const raw = toEnDigits(e.target.value);
+                      if (/^[0-9.]*$/.test(raw)) setKgStr(raw);
+                    }}
+                    placeholder="০"
+                    className="w-full text-xl sm:text-2xl font-extrabold px-4 py-3 pr-14 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
+                    কেজি
+                  </span>
+                </div>
+
+                {/* Gram Input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={digitMode === 'bn' ? toBnDigits(gramStr) : toEnDigits(gramStr)}
+                    onChange={(e) => {
+                      const raw = toEnDigits(e.target.value);
+                      if (/^[0-9.]*$/.test(raw)) setGramStr(raw);
+                    }}
+                    placeholder="০"
+                    className="w-full text-xl sm:text-2xl font-extrabold px-4 py-3 pr-14 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
+                    গ্রাম
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">
+                  ক্রেতা কত টাকার পণ্য নিতে চান?
                 </label>
               </div>
               <div className="relative">
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={digitMode === 'bn' ? toBnDigits(pricePerKgStr) : toEnDigits(pricePerKgStr)}
+                  value={digitMode === 'bn' ? toBnDigits(givenMoneyStr) : toEnDigits(givenMoneyStr)}
                   onChange={(e) => {
                     const raw = toEnDigits(e.target.value);
-                    if (/^[0-9.]*$/.test(raw)) setPricePerKgStr(raw);
+                    if (/^[0-9.]*$/.test(raw)) setGivenMoneyStr(raw);
                   }}
-                  placeholder={digitMode === 'bn' ? 'যেমন: ২৫০' : 'e.g. 250'}
-                  className="w-full text-2xl sm:text-3xl font-bold px-4 py-3.5 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition"
+                  placeholder={digitMode === 'bn' ? 'টাকার পরিমাণ লিখুন' : 'Enter amount'}
+                  className="w-full text-2xl sm:text-3xl font-extrabold px-4 py-3 pl-12 pr-28 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition"
                 />
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400 dark:text-slate-500">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                   ৳
                 </span>
-              </div>
-              {/* Quick rate presets */}
-              <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                {[60, 120, 250, 450, 800, 1200].map((pr) => (
+                {givenMoneyStr && (
                   <button
-                    key={pr}
-                    onClick={() => {
-                      if (soundEnabled) soundFx.playTap();
-                      setPricePerKgStr(String(pr));
-                    }}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition cursor-pointer ${
-                      parseNumberInput(pricePerKgStr) === pr
-                        ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-300 font-bold'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                    }`}
+                    type="button"
+                    onClick={() => setGivenMoneyStr('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 active:scale-95 text-rose-500 dark:text-rose-400 text-sm font-black transition-all cursor-pointer border border-rose-500/30 shadow-sm"
+                    title="টাকা মুছুন"
                   >
-                    {formatDisplayNumber(pr, digitMode, 0)} ৳/কেজি
+                    <Trash2 className="w-4 h-4" />
+                    <span>মুছুন</span>
                   </button>
-                ))}
+                )}
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Mode 1: Weight Input (Kg + Grams) */}
+        {/* 3. Immediate Result Card (সরাসরি ফলাফল) */}
+        <div className="mt-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white shadow-lg shadow-emerald-600/20 relative overflow-hidden">
+          <div className="flex items-center justify-between text-xs text-emerald-100 font-semibold mb-1">
+            <span>
+              {calcMode === 'weight_to_price' ? 'সর্বমোট দাম:' : 'প্রাপ্য মোট ওজন:'}
+            </span>
+            <span className="bg-emerald-500/30 px-2 py-0.5 rounded-md text-[11px] font-bold border border-emerald-400/30">
+              {calcMode === 'weight_to_price' ? 'টাকার হিসাব' : 'ওজনের হিসাব'}
+            </span>
+          </div>
+
+          {/* Big Result */}
+          <div className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2">
             {calcMode === 'weight_to_price' ? (
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    ওজন নির্ধারণ করুন (কেজি ও গ্রাম):
-                  </label>
-                  <button
-                    onClick={handleClear}
-                    className="text-xs font-semibold text-rose-500 hover:text-rose-600 cursor-pointer"
-                  >
-                    মুছে ফেলুন
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Kg Input */}
-                  <div>
-                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
-                      কেজি (Kg)
-                    </span>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={digitMode === 'bn' ? toBnDigits(kgStr) : toEnDigits(kgStr)}
-                        onChange={(e) => {
-                          const raw = toEnDigits(e.target.value);
-                          if (/^[0-9]*$/.test(raw)) setKgStr(raw);
-                        }}
-                        placeholder={digitMode === 'bn' ? '২' : '2'}
-                        className="w-full text-xl font-bold px-3 py-2.5 pr-12 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none focus:border-amber-500"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                        কেজি
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Gram Input */}
-                  <div>
-                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
-                      গ্রাম (Gram)
-                    </span>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={digitMode === 'bn' ? toBnDigits(gramStr) : toEnDigits(gramStr)}
-                        onChange={(e) => {
-                          const raw = toEnDigits(e.target.value);
-                          if (/^[0-9]*$/.test(raw)) setGramStr(raw);
-                        }}
-                        placeholder={digitMode === 'bn' ? '৭০০' : '700'}
-                        className="w-full text-xl font-bold px-3 py-2.5 pr-14 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 outline-none focus:border-amber-500"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                        গ্রাম
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Weight Adder Buttons */}
-                <div>
-                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1.5">
-                    ওজন যোগ করুন:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      onClick={() => {
-                        if (soundEnabled) soundFx.playTap();
-                        setKgStr('2');
-                        setGramStr('700');
-                        setPricePerKgStr('250');
-                      }}
-                      className="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 hover:bg-amber-200 cursor-pointer border border-amber-300/80 flex items-center gap-1"
-                    >
-                      <Sparkles className="w-3 h-3 text-amber-600" />
-                      <span>ব্যবহারকারীর উদাহরণ: ২ কেজি ৭০০ গ্রাম</span>
-                    </button>
-                    {[
-                      { label: '+৫০ গ্রাম', kg: 0, g: 50 },
-                      { label: '+১০০ গ্রাম', kg: 0, g: 100 },
-                      { label: '+২৫০ গ্রাম (১ পোয়া)', kg: 0, g: 250 },
-                      { label: '+৫০০ গ্রাম (আধ কেজি)', kg: 0, g: 500 },
-                      { label: '+১ কেজি', kg: 1, g: 0 },
-                      { label: '+২ কেজি', kg: 2, g: 0 },
-                      { label: '+৫ কেজি', kg: 5, g: 0 },
-                    ].map((w, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => addWeight(w.kg, w.g)}
-                        className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer active:scale-95 transition"
-                      >
-                        {w.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Local market units conversion quick glance */}
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-700/80 text-[11px] text-slate-600 dark:text-slate-400">
-                  <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                    <span className="block font-bold text-slate-800 dark:text-white">১ পোয়া (২৫০ গ্রাম):</span>
-                    <span className="text-amber-600 dark:text-amber-400 font-bold">
-                      {formatDisplayNumber(pricePer250Gram, digitMode, 2)} ৳
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                    <span className="block font-bold text-slate-800 dark:text-white">১০০ গ্রাম:</span>
-                    <span className="text-amber-600 dark:text-amber-400 font-bold">
-                      {formatDisplayNumber(pricePer100Gram, digitMode, 2)} ৳
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                    <span className="block font-bold text-slate-800 dark:text-white">৫০ গ্রাম:</span>
-                    <span className="text-amber-600 dark:text-amber-400 font-bold">
-                      {formatDisplayNumber(pricePer50Gram, digitMode, 2)} ৳
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <>৳ {formatDisplayNumber(calculatedTotalPrice, digitMode, 2)}</>
             ) : (
-              /* Mode 2: Given Money Input */
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3">
-                <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  ক্রেতা কত টাকার পণ্য নিতে চান?
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={digitMode === 'bn' ? toBnDigits(givenMoneyStr) : toEnDigits(givenMoneyStr)}
-                    onChange={(e) => {
-                      const raw = toEnDigits(e.target.value);
-                      if (/^[0-9.]*$/.test(raw)) setGivenMoneyStr(raw);
-                    }}
-                    placeholder={digitMode === 'bn' ? 'যেমন: ১০০' : 'e.g. 100'}
-                    className="w-full text-2xl font-bold px-4 py-3 pl-12 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 focus:border-amber-500 outline-none text-slate-900 dark:text-white"
-                  />
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-slate-400">
-                    ৳
-                  </span>
-                </div>
-
-                {/* Quick Money Chips */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {[20, 50, 100, 150, 200, 500].map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => {
-                        if (soundEnabled) soundFx.playTap();
-                        setGivenMoneyStr(String(m));
-                      }}
-                      className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
-                    >
-                      {formatDisplayNumber(m, digitMode, 0)} ৳
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <>
+                {derivedKgPart > 0 && `${formatDisplayNumber(derivedKgPart, digitMode, 0)} কেজি `}
+                {formatDisplayNumber(derivedGramPart, digitMode, 0)} গ্রাম
+              </>
             )}
           </div>
 
-          {/* Right Column: Output Card */}
-          <div className="lg:col-span-5 flex flex-col justify-between">
-            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-amber-600 via-amber-700 to-orange-800 text-white shadow-xl shadow-amber-700/20 relative overflow-hidden">
-              {/* Background scale icon */}
-              <div className="absolute -right-4 -bottom-4 text-7xl opacity-15 pointer-events-none select-none">
-                ⚖️
-              </div>
-
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-amber-500/40 pb-3">
-                <span className="text-xs font-semibold text-amber-200 uppercase tracking-wider">
-                  {calcMode === 'weight_to_price' ? 'নির্ধারিত ওজন অনুযায়ী মোট দাম' : 'নির্ধারিত টাকায় প্রাপ্য মোট ওজন'}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/30 text-amber-100 border border-amber-400/30">
-                  {selectedItemName}
-                </span>
-              </div>
-
-              {/* Primary Output */}
-              <div className="my-4">
+          {/* Breakdown Pills */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2.5 rounded-xl bg-black/15 text-xs">
+            <div>
+              <span className="text-emerald-200 text-[11px] block">
+                {calcMode === 'weight_to_price' ? 'মোট ওজন:' : 'ক্রেতার টাকা:'}
+              </span>
+              <span className="font-bold text-sm text-white">
                 {calcMode === 'weight_to_price' ? (
-                  <>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-4xl sm:text-5xl font-black tracking-tight text-white drop-shadow-xs">
-                        {formatDisplayNumber(calculatedTotalPrice, digitMode, 2)}
-                      </span>
-                      <span className="text-2xl font-bold text-amber-200">টাকা</span>
-                    </div>
-                    <p className="text-xs text-amber-100/90 mt-1 line-clamp-1 font-medium">
-                      কথায়: {amountToBanglaWords(calculatedTotalPrice)}
-                    </p>
-                  </>
+                  `${formatDisplayNumber(kgVal, digitMode, 0)} কেজি ${formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম`
                 ) : (
-                  <>
-                    <div className="flex items-baseline gap-1.5 flex-wrap">
-                      {derivedKgPart > 0 && (
-                        <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-                          {formatDisplayNumber(derivedKgPart, digitMode, 0)} কেজি
-                        </span>
-                      )}
-                      <span className="text-4xl sm:text-5xl font-black tracking-tight text-white">
-                        {formatDisplayNumber(derivedGramPart, digitMode, 0)}
-                      </span>
-                      <span className="text-2xl font-bold text-amber-200">গ্রাম</span>
-                    </div>
-                    <p className="text-xs text-amber-100/90 mt-1 font-medium">
-                      মোট: {formatDisplayNumber(calculatedWeightInGrams, digitMode, 0)} গ্রাম ({formatDisplayNumber(calculatedWeightInKg, digitMode, 3)} কেজি)
-                    </p>
-                  </>
+                  `${formatDisplayNumber(givenMoney, digitMode, 2)} ৳`
                 )}
-              </div>
-
-              {/* Breakdown Details */}
-              <div className="space-y-2.5 pt-3 border-t border-amber-500/30 text-xs sm:text-sm">
-                <div className="flex items-center justify-between text-amber-100">
-                  <span>১ কেজির দর:</span>
-                  <span className="font-bold text-white">
-                    {formatDisplayNumber(pricePerKg, digitMode, 2)} ৳
-                  </span>
-                </div>
-
-                {calcMode === 'weight_to_price' ? (
-                  <>
-                    <div className="flex items-center justify-between text-amber-100">
-                      <span>মোট ওজন:</span>
-                      <span className="font-bold text-white">
-                        {formatDisplayNumber(kgVal, digitMode, 0)} কেজি {formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-amber-100">
-                      <span>কেজিতে রূপান্তর:</span>
-                      <span className="font-bold text-white">
-                        {formatDisplayNumber(totalWeightInKg, digitMode, 3)} কেজি ({formatDisplayNumber(totalWeightInGrams, digitMode, 0)} গ্রাম)
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-amber-200 pt-1 border-t border-amber-500/40">
-                      <span>হিসাব সূত্র:</span>
-                      <span className="font-mono text-[11px] text-amber-100">
-                        {formatDisplayNumber(totalWeightInKg, digitMode, 3)} × {formatDisplayNumber(pricePerKg, digitMode, 0)} = {formatDisplayNumber(calculatedTotalPrice, digitMode, 2)} ৳
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between text-amber-100">
-                      <span>ক্রেতার দেওয়া টাকা:</span>
-                      <span className="font-bold text-white">
-                        {formatDisplayNumber(givenMoney, digitMode, 2)} ৳
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-amber-200 pt-1 border-t border-amber-500/40">
-                      <span>হিসাব সূত্র:</span>
-                      <span className="font-mono text-[11px] text-amber-100">
-                        ({formatDisplayNumber(givenMoney, digitMode, 0)} ÷ {formatDisplayNumber(pricePerKg, digitMode, 0)}) × ১০০০ = {formatDisplayNumber(calculatedWeightInGrams, digitMode, 0)} গ্রাম
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Scenario Explanation Card */}
-              <div className="mt-4 p-2.5 rounded-xl bg-black/15 text-[11px] text-amber-100 flex items-center gap-1.5">
-                <HelpCircle className="w-3.5 h-3.5 text-white flex-shrink-0" />
-                <span>
-                  {calcMode === 'weight_to_price'
-                    ? `১ কেজির দাম ${formatDisplayNumber(pricePerKg, digitMode, 0)} টাকা হলে ${formatDisplayNumber(kgVal, digitMode, 0)} কেজি ${formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম ওজনের দাম হবে ঠিক ${formatDisplayNumber(calculatedTotalPrice, digitMode, 2)} টাকা।`
-                    : `১ কেজি ${formatDisplayNumber(pricePerKg, digitMode, 0)} টাকা দরে ${formatDisplayNumber(givenMoney, digitMode, 0)} টাকায় ক্রেতা পাবেন ${derivedKgPart > 0 ? `${formatDisplayNumber(derivedKgPart, digitMode, 0)} কেজি ` : ''}${formatDisplayNumber(derivedGramPart, digitMode, 0)} গ্রাম।`}
-                </span>
-              </div>
+              </span>
             </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              <button
-                onClick={handleCopy}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition cursor-pointer"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-4 h-4 text-amber-500" />
-                    <span className="text-amber-600">কপি হয়েছে!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4 text-slate-500" />
-                    <span>কপি হিসাব</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={handleSaveToHistory}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition cursor-pointer"
-              >
-                {saved ? (
-                  <>
-                    <Check className="w-4 h-4 text-amber-500" />
-                    <span className="text-amber-600">সংরক্ষিত!</span>
-                  </>
-                ) : (
-                  <>
-                    <BookmarkCheck className="w-4 h-4 text-slate-500" />
-                    <span>খাতায় সেভ</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  if (soundEnabled) soundFx.playTap();
-                  setShowReceipt(true);
-                }}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 text-xs font-bold transition cursor-pointer"
-              >
-                <FileText className="w-4 h-4" />
-                <span>ওজন স্লিপ</span>
-              </button>
+            <div>
+              <span className="text-emerald-200 text-[11px] block">কেজির দর:</span>
+              <span className="font-bold text-sm text-amber-300">
+                {formatDisplayNumber(pricePerKg, digitMode, 0)} ৳ / কেজি
+              </span>
             </div>
+            <div className="col-span-2 sm:col-span-1">
+              <span className="text-emerald-200 text-[11px] block">প্রতি ১০০ গ্রাম:</span>
+              <span className="font-semibold text-xs text-emerald-100">
+                {formatDisplayNumber(pricePer100Gram, digitMode, 1)} ৳
+              </span>
+            </div>
+          </div>
+
+          {/* Words */}
+          {calcMode === 'weight_to_price' && calculatedTotalPrice > 0 && (
+            <div className="mt-2.5 text-xs text-emerald-100/90 font-medium">
+              কথায়: {amountToBanglaWords(calculatedTotalPrice)}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-emerald-500/30">
+            <button
+              onClick={handleCopy}
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition text-xs font-semibold cursor-pointer"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? 'কপি হয়েছে' : 'কপি করুন'}</span>
+            </button>
+
+            <button
+              onClick={() => setShowReceipt(true)}
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition text-xs font-semibold cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>রসিদ দেখুন</span>
+            </button>
+
+            <button
+              onClick={handleSaveToHistory}
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition text-xs font-semibold cursor-pointer"
+            >
+              <BookmarkCheck className="w-3.5 h-3.5" />
+              <span>{saved ? 'সেভ হয়েছে' : 'সেভ করুন'}</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Digital Weight Slip Modal */}
-      <ReceiptModal
-        isOpen={showReceipt}
-        onClose={() => setShowReceipt(false)}
-        title="ওজন ও পণ্যের মূল্য রসিদ"
-        subtitle={`পণ্যের বিবরণ: ${selectedItemName}`}
-        items={[
-          { label: '১ কেজির দর', value: `${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳ / কেজি` },
-          {
-            label: 'পরিমাপকৃত ওজন',
-            value: `${formatDisplayNumber(totalWeightInKg, digitMode, 3)} কেজি (${formatDisplayNumber(totalWeightInGrams, digitMode, 0)} গ্রাম)`,
-            isBold: true,
-          },
-          {
-            label: 'মোট প্রদেয় মূল্য',
-            value: `${formatDisplayNumber(calcMode === 'weight_to_price' ? calculatedTotalPrice : givenMoney, digitMode, 2)} ৳`,
-            isHighlight: true,
-          },
-        ]}
-        totalAmountText={`${formatDisplayNumber(calcMode === 'weight_to_price' ? calculatedTotalPrice : givenMoney, digitMode, 2)} টাকা`}
-        rawAmount={calcMode === 'weight_to_price' ? calculatedTotalPrice : givenMoney}
-        digitMode={digitMode}
-        notes="ক্রয়কৃত পণ্য ও ওজনের নির্ভুলতা ডিজিটাল স্কেলের মাধ্যমে যাচাই করে গ্রহণ করুন।"
-      />
+      {/* Printable Receipt Modal */}
+      {showReceipt && (
+        <ReceiptModal
+          isOpen={showReceipt}
+          onClose={() => setShowReceipt(false)}
+          title="ওজন ও দাম রসিদ"
+          subtitle={`১ কেজির দর ${formatDisplayNumber(pricePerKg, digitMode, 0)} ৳`}
+          items={[
+            { 
+              label: calcMode === 'weight_to_price' ? 'মোট ওজন' : 'ক্রেতার টাকা', 
+              value: calcMode === 'weight_to_price' 
+                ? `${formatDisplayNumber(kgVal, digitMode, 0)} কেজি ${formatDisplayNumber(gramVal, digitMode, 0)} গ্রাম`
+                : `${formatDisplayNumber(givenMoney, digitMode, 2)} ৳` 
+            },
+            { label: 'প্রতি কেজির দর', value: `${formatDisplayNumber(pricePerKg, digitMode, 2)} ৳` },
+            { label: 'প্রতি ১০০ গ্রাম দর', value: `${formatDisplayNumber(pricePer100Gram, digitMode, 2)} ৳` }
+          ]}
+          totalAmountText={calcMode === 'weight_to_price' 
+            ? `${formatDisplayNumber(calculatedTotalPrice, digitMode, 2)} ৳` 
+            : `${formatDisplayNumber(derivedKgPart, digitMode, 0)} কেজি ${formatDisplayNumber(derivedGramPart, digitMode, 0)} গ্রাম`}
+          rawAmount={calcMode === 'weight_to_price' ? calculatedTotalPrice : givenMoney}
+          digitMode={digitMode}
+        />
+      )}
     </div>
   );
 };

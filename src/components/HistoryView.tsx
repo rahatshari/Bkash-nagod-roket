@@ -9,7 +9,8 @@ import {
   Scale, 
   FileText, 
   Search,
-  Filter
+  Filter,
+  Percent
 } from 'lucide-react';
 import { HistoryRecord, HistoryItemType, DigitMode } from '../types';
 import { formatDisplayNumber, soundFx } from '../utils/numberConverter';
@@ -63,6 +64,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     switch (type) {
       case 'mfs':
         return <Coins className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
+      case 'percentage':
+        return <Percent className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
       case 'remittance':
         return <Globe2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />;
       case 'weight':
@@ -74,6 +77,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     switch (type) {
       case 'mfs':
         return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+      case 'percentage':
+        return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
       case 'remittance':
         return 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border-teal-200 dark:border-teal-800';
       case 'weight':
@@ -121,8 +126,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             {[
               { id: 'all', label: 'সব হিসাব', count: history.length },
               { id: 'mfs', label: 'ক্যাশ আউট', count: history.filter((h) => h.type === 'mfs').length },
-              { id: 'remittance', label: 'রেমিট্যান্স', count: history.filter((h) => h.type === 'remittance').length },
+              { id: 'percentage', label: 'শতকরা ও লাভ', count: history.filter((h) => h.type === 'percentage').length },
               { id: 'weight', label: 'ওজন ও দাম', count: history.filter((h) => h.type === 'weight').length },
+              { id: 'remittance', label: 'রেমিট্যান্স', count: history.filter((h) => h.type === 'remittance').length },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -189,7 +195,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                         {item.title}
                       </span>
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getBadgeColor(item.type)}`}>
-                        {item.type === 'mfs' ? 'MFS' : item.type === 'remittance' ? 'রেমিট্যান্স' : 'ওজন'}
+                        {item.type === 'mfs' ? 'MFS' : item.type === 'percentage' ? 'শতকরা' : item.type === 'remittance' ? 'রেমিট্যান্স' : 'ওজন'}
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 font-medium">
