@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  
+  <!-- Scale & Calculator Symbol -->
+  <circle cx="256" cy="256" r="170" fill="url(#gold)" opacity="0.15" />
+  
+  <!-- Calculator Device -->
+  <rect x="156" y="116" width="200" height="280" rx="32" fill="#0f172a" stroke="#fbbf24" stroke-width="8"/>
+  
+  <!-- Screen -->
+  <rect x="180" y="146" width="152" height="56" rx="12" fill="#1e293b"/>
+  <!-- Taka / Currency glyph on screen -->
+  <text x="316" y="186" font-family="system-ui, sans-serif" font-size="34" font-weight="bold" fill="#34d399" text-anchor="end">৳ ৫,৪২০</text>
+
+  <!-- Buttons Grid -->
+  <circle cx="204" cy="242" r="16" fill="#334155"/>
+  <circle cx="256" cy="242" r="16" fill="#334155"/>
+  <circle cx="308" cy="242" r="16" fill="#10b981"/>
+  
+  <circle cx="204" cy="292" r="16" fill="#334155"/>
+  <circle cx="256" cy="292" r="16" fill="#334155"/>
+  <circle cx="308" cy="292" r="16" fill="#f59e0b"/>
+
+  <circle cx="204" cy="342" r="16" fill="#334155"/>
+  <circle cx="256" cy="342" r="16" fill="#334155"/>
+  <circle cx="308" cy="342" r="16" fill="#6366f1"/>
+
+  <!-- Badge / Scale icon -->
+  <circle cx="370" cy="370" r="44" fill="#10b981" stroke="#ffffff" stroke-width="6"/>
+  <path d="M354 370 L366 382 L388 358" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

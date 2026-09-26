@@ -22,6 +22,25 @@
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased selection:bg-emerald-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
     <div id="root"></div>
+    <!-- Automatic GitHub Pages Loader -->
+    <script>
+      (function() {
+        var isDev = location.port === '3000' || location.hostname.includes('run.app');
+        if (!isDev) {
+          var s = document.createElement('script');
+          s.type = 'module';
+          s.crossOrigin = 'anonymous';
+          s.src = './assets/app.js';
+          document.head.appendChild(s);
+
+          var l = document.createElement('link');
+          l.rel = 'stylesheet';
+          l.crossOrigin = 'anonymous';
+          l.href = './assets/app.css';
+          document.head.appendChild(l);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
