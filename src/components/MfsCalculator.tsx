@@ -56,7 +56,8 @@ export const MfsCalculator: React.FC<MfsCalculatorProps> = ({
   const activeFee = fee;
   const activeCashInHand = mode === 'net_in_hand' ? amount : cashReceivedFromBalance;
 
-  // Auto-save history with debounce
+  // Auto-save history with comfortable debounce (3.5 seconds)
+  // so typing 2520 doesn't save intermediate 25 or 252
   const lastSavedRef = useRef<string>('');
   useEffect(() => {
     if (amount <= 0 || ratePerThousand <= 0) return;
@@ -85,7 +86,7 @@ export const MfsCalculator: React.FC<MfsCalculatorProps> = ({
           date: new Date().toISOString(),
         }
       });
-    }, 1500);
+    }, 3500);
 
     return () => clearTimeout(timer);
   }, [amount, ratePerThousand, mode, activeFee, activeTotal, activeCashInHand, digitMode, onSaveHistory]);
@@ -198,7 +199,7 @@ export const MfsCalculator: React.FC<MfsCalculatorProps> = ({
                 {mode === 'net_in_hand' ? 'গ্রাহক কত টাকা ক্যাশ হাতে পেতে চান?' : 'ব্যালেন্সে মোট কত টাকা আছে?'}
               </label>
             </div>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="text"
                 inputMode="decimal"
@@ -210,19 +211,19 @@ export const MfsCalculator: React.FC<MfsCalculatorProps> = ({
                   }
                 }}
                 placeholder={digitMode === 'bn' ? 'টাকার পরিমাণ লিখুন' : 'Enter amount'}
-                className="w-full text-2xl sm:text-3xl font-extrabold px-4 py-3 pl-12 pr-28 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition"
+                className={`w-full text-xl sm:text-2xl font-extrabold py-3 pl-11 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition ${amountStr ? 'pr-28' : 'pr-4'}`}
               />
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xl font-bold text-emerald-600 dark:text-emerald-400 pointer-events-none">
                 ৳
               </span>
               {amountStr && (
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 active:scale-95 text-rose-500 dark:text-rose-400 text-sm font-black transition-all cursor-pointer border border-rose-500/30 shadow-sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 active:scale-95 text-rose-500 dark:text-rose-400 text-xs sm:text-sm font-black transition-all cursor-pointer border border-rose-500/30 shadow-sm"
                   title="লেখা মুছুন"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>মুছুন</span>
                 </button>
               )}

@@ -78,15 +78,33 @@ export default function App() {
     }
   }, [history]);
 
-  // History Handlers
+  // History Handlers - Smart Upsert Logic:
+  // If the latest record is of the same category (e.g. MFS) and within 15 seconds,
+  // update the existing record instead of cluttering history with intermediate keystrokes!
   const handleSaveHistory = (record: Omit<HistoryRecord, 'id' | 'timestamp'>) => {
-    const newRecord: HistoryRecord = {
-      ...record,
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-    };
-    // Keep up to 60 recent calculation records
-    setHistory((prev) => [newRecord, ...prev.slice(0, 59)]);
+    setHistory((prev) => {
+      const now = Date.now();
+      const first = prev[0];
+
+      // If the top item was created recently (< 15 seconds) and is of same type, update it in place!
+      if (first && first.type === record.type && now - first.timestamp < 15000) {
+        const updatedFirst: HistoryRecord = {
+          ...record,
+          id: first.id,
+          timestamp: now,
+        };
+        return [updatedFirst, ...prev.slice(1)];
+      }
+
+      // Otherwise create a new history record
+      const newRecord: HistoryRecord = {
+        ...record,
+        id: `${now}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: now,
+      };
+      // Keep up to 60 recent calculation records
+      return [newRecord, ...prev.slice(0, 59)];
+    });
   };
 
   const handleClearHistory = () => {

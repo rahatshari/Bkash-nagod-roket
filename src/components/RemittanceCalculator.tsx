@@ -84,7 +84,7 @@ export const RemittanceCalculator: React.FC<RemittanceCalculatorProps> = ({
     foreignConverted = effectiveRate > 0 ? inputAmount / effectiveRate : 0;
   }
 
-  // Auto-save history with debounce
+  // Auto-save history with comfortable debounce (3.5 seconds)
   const lastSavedRef = useRef<string>('');
   useEffect(() => {
     if (inputAmount <= 0 || effectiveRate <= 0) return;
@@ -118,7 +118,7 @@ export const RemittanceCalculator: React.FC<RemittanceCalculatorProps> = ({
           date: new Date().toISOString()
         }
       });
-    }, 1500);
+    }, 3500);
 
     return () => clearTimeout(timer);
   }, [inputAmount, effectiveRate, direction, includeIncentive, selectedCurrencyCode, activeCurrency, totalBdt, foreignConverted, incentiveAmount, digitMode, onSaveHistory]);
@@ -314,7 +314,7 @@ export const RemittanceCalculator: React.FC<RemittanceCalculatorProps> = ({
                   : 'বাংলাদেশে কত টাকা পাঠাতে চান?'}
               </label>
             </div>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="text"
                 inputMode="decimal"
@@ -325,20 +325,20 @@ export const RemittanceCalculator: React.FC<RemittanceCalculatorProps> = ({
                     setAmountStr(raw);
                   }
                 }}
-                placeholder="পরিমাণ লিখুন"
-                className="w-full text-2xl sm:text-3xl font-extrabold px-4 py-3 pl-16 pr-28 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-teal-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition"
+                placeholder={digitMode === 'bn' ? 'টাকার পরিমাণ লিখুন' : 'Enter amount'}
+                className={`w-full text-xl sm:text-2xl font-extrabold py-3 pl-14 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 focus:border-teal-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-900 dark:text-white transition ${amountStr ? 'pr-28' : 'pr-4'}`}
               />
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm sm:text-base font-extrabold text-teal-600 dark:text-teal-400">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm sm:text-base font-extrabold text-teal-600 dark:text-teal-400 pointer-events-none">
                 {direction === 'foreign_to_bdt' ? activeCurrency.code : '৳'}
               </span>
               {amountStr && (
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 active:scale-95 text-rose-500 dark:text-rose-400 text-sm font-black transition-all cursor-pointer border border-rose-500/30 shadow-sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 active:scale-95 text-rose-500 dark:text-rose-400 text-xs sm:text-sm font-black transition-all cursor-pointer border border-rose-500/30 shadow-sm"
                   title="টাকা মুছুন"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>মুছুন</span>
                 </button>
               )}
